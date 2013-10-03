@@ -28,14 +28,14 @@ begin
     end
 
     if response
-
       response.each do |dyno_response|
         dyno_match= dyno_response.match(/(web|worker)\.(\d*)/)
         dyno_name = "#{dyno_match[1]}.#{dyno_match[2]}"
+        puts "Dyno Name: #{dyno_name}"
         restarts[dyno_name] ||= Time.now
 
         if dyno_response
-            if (Time.now - restarts[dyno_name]) > 600
+          if (Time.now - restarts[dyno_name]) > 600
             restarts[dyno_name] = Time.now
             puts "[monitor] RESTARTING #{dyno_name} based on #{MEMORY_CODE}"
             puts heroku.post_ps_restart(APP_NAME, "ps" => dyno_name)
