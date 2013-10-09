@@ -21,7 +21,6 @@ begin
 
   while true
     begin
-      puts "[monitor] Fetching log"
       response = open(heroku.get_logs(APP_NAME, 'num' => '1000').body).readlines.reverse.select{|l| l.include?(MEMORY_CODE) }
     rescue => ex
       puts "[monitor] Unable to fetch log (#{ex.message})"
@@ -31,23 +30,21 @@ begin
       response.each do |dyno_response|
         dyno_match= dyno_response.match(/(web|worker)\.(\d*)/)
         dyno_name = "#{dyno_match[1]}.#{dyno_match[2]}"
-        puts "Dyno Name: #{dyno_name}"
         restarts[dyno_name] ||= Time.now
 
-        if dyno_response
-          if (Time.now - restarts[dyno_name]) > 600
-            restarts[dyno_name] = Time.now
-            puts "[monitor] RESTARTING #{dyno_name} based on #{MEMORY_CODE}"
-            puts heroku.post_ps_restart(APP_NAME, "ps" => dyno_name)
-          else
-            puts "[monitor] grace period for #{dyno_name}"
-          end
+        if dyno_response && (Time.now.to_i - restarts[dyno_name].to_i) > 300
+          puts "[monitor] RESTARTING #{dyno_name} based on #{MEMORY_CODE} at #{Time.now}"
+          puts "[monitor] Log: #{dyno_response}"
+          restarts[dyno_name] = Time.now
+          puts heroku.post_ps_restart(APP_NAME, "ps" => dyno_name)
+        else
+          puts "[monitor] Grace period for #{dyno_name}"
         end
       end
     else
       puts "[monitor] No activity..."
     end
-    sleep 10
+    sleep 20
   end
 rescue SignalException => ex
   # SIGTERM is normal, we don't need an email about it
